@@ -24,6 +24,7 @@ const formatProduct = (product, defaultThreshold = 5) => {
     lowStockThreshold: product.lowStockThreshold,
     effectiveThreshold,
     isLowStock,
+    lastAdjustmentNote: product.lastAdjustmentNote,
     lastUpdatedBy: product.lastUpdatedBy,
     createdAt: product.createdAt,
     updatedAt: product.updatedAt,
@@ -192,8 +193,12 @@ const updateProduct = async (req, res, next) => {
       }
     }
 
-    const updatedProduct = await prisma.product.update({
-      where: { id },
+    // Atomic tenant-scoped update
+    await prisma.product.updateMany({
+      where: {
+        id,
+        organizationId,
+      },
       data: {
         name,
         sku,
@@ -205,6 +210,10 @@ const updateProduct = async (req, res, next) => {
           lowStockThreshold !== undefined ? lowStockThreshold : existingProduct.lowStockThreshold,
         lastUpdatedBy: req.user.email,
       },
+    });
+
+    const updatedProduct = await prisma.product.findFirst({
+      where: { id, organizationId },
     });
 
     return successResponse(
@@ -223,20 +232,17 @@ const deleteProduct = async (req, res, next) => {
     const { id } = req.params;
     const organizationId = req.organization.id;
 
-    const existingProduct = await prisma.product.findFirst({
+    // Atomic tenant-scoped deletion
+    const deleteResult = await prisma.product.deleteMany({
       where: {
         id,
         organizationId,
       },
     });
 
-    if (!existingProduct) {
+    if (deleteResult.count === 0) {
       return errorResponse(res, 404, 'Product not found');
     }
-
-    await prisma.product.delete({
-      where: { id },
-    });
 
     return successResponse(res, 200, 'Product deleted successfully', { id });
   } catch (error) {
@@ -244,39 +250,73 @@ const deleteProduct = async (req, res, next) => {
   }
 };
 
+/**
+ * Atomic stock adjustment with negative inventory prevention and audit note persistence
+ */
 const adjustStock = async (req, res, next) => {
   try {
     const { id } = req.params;
     const organizationId = req.organization.id;
     const defaultThreshold = req.organization.defaultLowStockThreshold;
-    const { adjustment } = req.body;
+    const { adjustment, note } = req.body;
 
-    const product = await prisma.product.findFirst({
-      where: {
-        id,
-        organizationId,
-      },
-    });
+    const formattedNote = note && typeof note === 'string' && note.trim() !== '' ? note.trim() : null;
 
-    if (!product) {
-      return errorResponse(res, 404, 'Product not found');
+    if (adjustment > 0) {
+      // Atomic increment scoped to tenant
+      const updateResult = await prisma.product.updateMany({
+        where: {
+          id,
+          organizationId,
+        },
+        data: {
+          quantityOnHand: { increment: adjustment },
+          lastAdjustmentNote: formattedNote,
+          lastUpdatedBy: req.user.email,
+        },
+      });
+
+      if (updateResult.count === 0) {
+        return errorResponse(res, 404, 'Product not found');
+      }
+    } else {
+      // Atomic decrement with condition that quantityOnHand >= reduction
+      const reduction = Math.abs(adjustment);
+      const updateResult = await prisma.product.updateMany({
+        where: {
+          id,
+          organizationId,
+          quantityOnHand: { gte: reduction }, // Atomic guard against race condition and negative inventory!
+        },
+        data: {
+          quantityOnHand: { decrement: reduction },
+          lastAdjustmentNote: formattedNote,
+          lastUpdatedBy: req.user.email,
+        },
+      });
+
+      if (updateResult.count === 0) {
+        // Determine whether product was missing or had insufficient stock
+        const product = await prisma.product.findFirst({
+          where: { id, organizationId },
+          select: { quantityOnHand: true },
+        });
+
+        if (!product) {
+          return errorResponse(res, 404, 'Product not found');
+        }
+
+        return errorResponse(
+          res,
+          400,
+          `Cannot reduce stock by ${reduction}. Current quantity on hand is ${product.quantityOnHand}.`
+        );
+      }
     }
 
-    const newQuantity = product.quantityOnHand + adjustment;
-    if (newQuantity < 0) {
-      return errorResponse(
-        res,
-        400,
-        `Cannot reduce stock by ${Math.abs(adjustment)}. Current quantity is ${product.quantityOnHand}.`
-      );
-    }
-
-    const updatedProduct = await prisma.product.update({
-      where: { id },
-      data: {
-        quantityOnHand: newQuantity,
-        lastUpdatedBy: req.user.email,
-      },
+    // Fetch the updated product
+    const updatedProduct = await prisma.product.findFirst({
+      where: { id, organizationId },
     });
 
     return successResponse(

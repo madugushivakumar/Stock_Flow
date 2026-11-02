@@ -294,6 +294,11 @@ export const ProductsPage = () => {
                       }`}>
                         {p.quantityOnHand}
                       </span>
+                      {p.lastAdjustmentNote && (
+                        <div className="text-[10px] text-slate-400 font-normal truncate max-w-[120px] ml-auto" title={`Last Note: ${p.lastAdjustmentNote}`}>
+                          📝 {p.lastAdjustmentNote}
+                        </div>
+                      )}
                     </td>
 
                     {/* Status Badge */}
@@ -444,3 +449,4 @@ export const ProductsPage = () => {
     </div>
   );
 };
+
