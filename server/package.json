@@ -6,9 +6,11 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
+    "test": "node test-api.js",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:deploy": "prisma migrate deploy",
+    "prisma:push": "prisma db push",
     "build": "prisma generate"
   },
   "dependencies": {
@@ -21,7 +23,6 @@
     "helmet": "^8.0.0",
     "jsonwebtoken": "^9.0.2",
     "morgan": "^1.10.0",
-    "stockflow": "file:..",
     "zod": "^3.24.2"
   },
   "devDependencies": {
