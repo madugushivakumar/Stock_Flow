@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const prisma = require('../config/db');
+const { JWT_SECRET } = require('../config/env');
 const { errorResponse } = require('../utils/response');
 
 const authenticate = async (req, res, next) => {
@@ -15,10 +16,9 @@ const authenticate = async (req, res, next) => {
       return errorResponse(res, 401, 'Authentication token missing');
     }
 
-    const secret = process.env.JWT_SECRET || 'stockflow_super_secret_jwt_key_2026';
     let decoded;
     try {
-      decoded = jwt.verify(token, secret);
+      decoded = jwt.verify(token, JWT_SECRET);
     } catch (jwtErr) {
       if (jwtErr.name === 'TokenExpiredError') {
         return errorResponse(res, 401, 'Session has expired, please log in again');

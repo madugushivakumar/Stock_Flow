@@ -1,12 +1,11 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const prisma = require('../config/db');
+const { JWT_SECRET, JWT_EXPIRES_IN } = require('../config/env');
 const { successResponse, errorResponse } = require('../utils/response');
 
 const generateToken = (userId, organizationId) => {
-  const secret = process.env.JWT_SECRET || 'stockflow_super_secret_jwt_key_2026';
-  const expiresIn = process.env.JWT_EXPIRES_IN || '7d';
-  return jwt.sign({ userId, organizationId }, secret, { expiresIn });
+  return jwt.sign({ userId, organizationId }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
 };
 
 const signup = async (req, res, next) => {
@@ -22,7 +21,7 @@ const signup = async (req, res, next) => {
       return errorResponse(res, 409, 'An account with this email address already exists');
     }
 
-    // Hash password
+    // Hash password using bcrypt
     const saltRounds = 10;
     const passwordHash = await bcrypt.hash(password, saltRounds);
 
@@ -46,7 +45,7 @@ const signup = async (req, res, next) => {
       return { organization, user };
     });
 
-    // Generate JWT
+    // Generate JWT token
     const token = generateToken(result.user.id, result.organization.id);
 
     return successResponse(res, 201, 'Account and organization created successfully', {
@@ -81,7 +80,7 @@ const login = async (req, res, next) => {
       return errorResponse(res, 401, 'Invalid email or password');
     }
 
-    // Verify password
+    // Verify password against hash
     const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
     if (!isPasswordValid) {
       return errorResponse(res, 401, 'Invalid email or password');
@@ -91,7 +90,7 @@ const login = async (req, res, next) => {
       return errorResponse(res, 403, 'Account is not associated with an active organization');
     }
 
-    // Generate JWT
+    // Generate JWT token
     const token = generateToken(user.id, user.organizationId);
 
     return successResponse(res, 200, 'Login successful', {
