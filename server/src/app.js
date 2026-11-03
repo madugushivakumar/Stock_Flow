@@ -1,4 +1,4 @@
-const { NODE_ENV, CLIENT_URL } = require('./config/env');
+const { NODE_ENV, CLIENT_URL, CORS_ORIGIN, ALLOWED_ORIGINS } = require('./config/env');
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -17,44 +17,59 @@ const app = express();
 // Security HTTP headers
 app.use(helmet());
 
-// Allowed origins configuration
-const allowedOrigins = new Set([
-  CLIENT_URL,
+// Helper to sanitize origin (trim whitespace and remove trailing slashes)
+const sanitizeOrigin = (url) => (url ? String(url).trim().replace(/\/+$/, '') : '');
+
+// Allowed origins configuration: production Vercel frontend, local dev, and environment overrides
+const defaultAllowedOrigins = [
+  'https://stock-flow-theta-five.vercel.app',
   'http://localhost:5173',
   'http://127.0.0.1:5173',
   'http://localhost:3000',
   'http://127.0.0.1:3000',
-]);
+];
 
-// Cross-Origin Resource Sharing with strict origin verification
-app.use(
-  cors({
-    origin: (origin, callback) => {
-      // Allow non-browser requests (e.g. curl, server-to-server, or test runner)
-      if (!origin) {
-        return callback(null, true);
-      }
+const envAllowedOrigins = [
+  CLIENT_URL,
+  CORS_ORIGIN,
+  process.env.FRONTEND_URL,
+  ...(ALLOWED_ORIGINS ? ALLOWED_ORIGINS.split(',') : []),
+]
+  .map(sanitizeOrigin)
+  .filter(Boolean);
 
-      // In development mode, check against local allowed origins
-      if (NODE_ENV !== 'production') {
-        if (allowedOrigins.has(origin) || origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:')) {
-          return callback(null, true);
-        }
-        return callback(new Error(`CORS error: Origin ${origin} is not allowed in development.`));
-      }
-
-      // In production mode, strictly allow only configured CLIENT_URL or explicit production domains
-      if (origin === CLIENT_URL || (process.env.ALLOWED_ORIGINS && process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim()).includes(origin))) {
-        return callback(null, true);
-      }
-
-      return callback(new Error(`CORS error: Origin ${origin} is rejected by security policy.`));
-    },
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
-  })
+const allowedOriginsSet = new Set(
+  [...defaultAllowedOrigins.map(sanitizeOrigin), ...envAllowedOrigins].filter(Boolean)
 );
+
+// Centralized Cross-Origin Resource Sharing (CORS) configuration
+const corsOptions = {
+  origin: (origin, callback) => {
+    // Allow requests with no origin (e.g. mobile apps, curl, server-to-server, test runner)
+    if (!origin) {
+      return callback(null, true);
+    }
+
+    const normalizedOrigin = sanitizeOrigin(origin);
+
+    // Explicit allowlist match or localhost in non-production
+    if (
+      allowedOriginsSet.has(normalizedOrigin) ||
+      (NODE_ENV !== 'production' &&
+        (normalizedOrigin.startsWith('http://localhost:') ||
+          normalizedOrigin.startsWith('http://127.0.0.1:')))
+    ) {
+      return callback(null, true);
+    }
+
+    return callback(new Error('Origin not allowed by CORS'));
+  },
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  optionsSuccessStatus: 204,
+};
+
+app.use(cors(corsOptions));
 
 // Body parser
 app.use(express.json({ limit: '1mb' }));

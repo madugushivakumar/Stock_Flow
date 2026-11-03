@@ -5,6 +5,14 @@ const notFoundHandler = (req, res) => {
 };
 
 const errorHandler = (err, req, res, next) => {
+  // CORS origin policy rejection
+  if (err.message && (err.message === 'Origin not allowed by CORS' || err.message.includes('CORS'))) {
+    if (process.env.NODE_ENV !== 'test') {
+      console.warn(`[CORS] Blocked unauthorized origin: ${req.headers.origin || 'unknown'}`);
+    }
+    return errorResponse(res, 403, 'CORS request rejected: Origin not allowed');
+  }
+
   console.error('Unhandled Application Error:', err);
 
   // Prisma unique constraint violation (e.g., P2002)

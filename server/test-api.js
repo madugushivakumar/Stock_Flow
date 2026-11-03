@@ -45,6 +45,19 @@ const makeReq = (path, method = 'GET', body = null, token = null) => {
   );
 };
 
+const makeCorsReq = ({ path, method = 'OPTIONS', headers = {}, body = null }) => {
+  return request(
+    {
+      hostname: '127.0.0.1',
+      port: TEST_PORT,
+      path,
+      method,
+      headers,
+    },
+    body
+  );
+};
+
 let testCount = 0;
 let passedCount = 0;
 
@@ -81,6 +94,94 @@ const runAllTests = async () => {
       assert.equal(res.data.success, true);
       assert.equal(res.data.data.status, 'ok');
       assert.ok(typeof res.data.data.uptimeSeconds === 'number');
+    });
+
+    // ---------------------------------------------------------------
+    // 1B. CORS POLICY & PREFLIGHT VERIFICATION
+    // ---------------------------------------------------------------
+    console.log('\n--- Suite 1B: Centralized CORS Policy & Preflight Security ---');
+
+    await testCase('Test A: Production Vercel origin preflight returns 204 with correct headers', async () => {
+      const res = await makeCorsReq({
+        path: '/api/auth/signup',
+        method: 'OPTIONS',
+        headers: {
+          'Origin': 'https://stock-flow-theta-five.vercel.app',
+          'Access-Control-Request-Method': 'POST',
+          'Access-Control-Request-Headers': 'content-type',
+        },
+      });
+      assert.ok([200, 204].includes(res.status), `Expected status 200 or 204, got ${res.status}`);
+      assert.equal(res.headers['access-control-allow-origin'], 'https://stock-flow-theta-five.vercel.app');
+      assert.ok(res.headers['access-control-allow-methods'].includes('POST'));
+      assert.ok(res.headers['access-control-allow-headers'].toLowerCase().includes('content-type'));
+    });
+
+    await testCase('Test B: Local development origin (http://localhost:5173) is permitted', async () => {
+      const res = await makeCorsReq({
+        path: '/api/auth/signup',
+        method: 'OPTIONS',
+        headers: {
+          'Origin': 'http://localhost:5173',
+          'Access-Control-Request-Method': 'POST',
+          'Access-Control-Request-Headers': 'content-type',
+        },
+      });
+      assert.ok([200, 204].includes(res.status), `Expected status 200 or 204, got ${res.status}`);
+      assert.equal(res.headers['access-control-allow-origin'], 'http://localhost:5173');
+    });
+
+    await testCase('Test C: Untrusted origin (https://malicious-example.invalid) receives no permissive CORS header', async () => {
+      const res = await makeCorsReq({
+        path: '/api/auth/signup',
+        method: 'OPTIONS',
+        headers: {
+          'Origin': 'https://malicious-example.invalid',
+          'Access-Control-Request-Method': 'POST',
+          'Access-Control-Request-Headers': 'content-type',
+        },
+      });
+      // Should reject with 403 or omit Access-Control-Allow-Origin
+      assert.notEqual(res.headers['access-control-allow-origin'], 'https://malicious-example.invalid');
+      assert.ok(res.status === 403 || !res.headers['access-control-allow-origin']);
+    });
+
+    await testCase('Test D: OPTIONS preflight on protected endpoint succeeds without JWT authentication', async () => {
+      const res = await makeCorsReq({
+        path: '/api/products',
+        method: 'OPTIONS',
+        headers: {
+          'Origin': 'https://stock-flow-theta-five.vercel.app',
+          'Access-Control-Request-Method': 'GET',
+        },
+      });
+      assert.ok([200, 204].includes(res.status), `Expected status 200 or 204, got ${res.status}`);
+      assert.equal(res.headers['access-control-allow-origin'], 'https://stock-flow-theta-five.vercel.app');
+    });
+
+    await testCase('Test E: Actual POST with production origin includes CORS headers and reaches controller', async () => {
+      const emailCors = `test-cors-${RUN_ID}@example.com`;
+      const res = await makeCorsReq({
+        path: '/api/auth/signup',
+        method: 'POST',
+        headers: {
+          'Origin': 'https://stock-flow-theta-five.vercel.app',
+          'Content-Type': 'application/json',
+        },
+        body: {
+          organizationName: `CORS Test Org ${RUN_ID}`,
+          email: emailCors,
+          password: 'Password123!',
+          confirmPassword: 'Password123!',
+        },
+      });
+      assert.equal(res.status, 201);
+      assert.equal(res.headers['access-control-allow-origin'], 'https://stock-flow-theta-five.vercel.app');
+      assert.equal(res.data.success, true);
+      assert.ok(res.data.data.token);
+      if (res.data.data.organization?.id) {
+        createdOrgIds.push(res.data.data.organization.id);
+      }
     });
 
     // ---------------------------------------------------------------
