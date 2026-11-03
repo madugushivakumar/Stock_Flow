@@ -20,16 +20,6 @@
   "devDependencies": {
     "concurrently": "^9.1.2"
   },
-  "overrides": {
-    "vite": {
-      "esbuild": "^0.25.0"
-    },
-    "esbuild": "^0.25.0",
-    "nodemon": {
-      "minimatch": "^11.0.1"
-    },
-    "minimatch": "^11.0.1"
-  },
   "keywords": [
     "saas",
     "inventory-management",
