@@ -19,7 +19,7 @@ const productSchema = z.object({
     .max(100, 'SKU cannot exceed 100 characters'),
   description: z.string().max(2000, 'Description cannot exceed 2000 characters').optional(),
   quantityOnHand: z.coerce
-    .number({ invalid_type_error: 'Quantity must be a number' })
+    .number({ error: 'Quantity must be a number' })
     .int('Quantity must be an integer')
     .min(0, 'Quantity cannot be negative'),
   costPrice: z

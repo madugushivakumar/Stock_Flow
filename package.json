@@ -18,6 +18,12 @@
   "devDependencies": {
     "concurrently": "^9.1.2"
   },
+  "overrides": {
+    "deepmerge-ts": "^8.0.2",
+    "@prisma/config": {
+      "deepmerge-ts": "^8.0.2"
+    }
+  },
   "keywords": [
     "saas",
     "inventory-management",

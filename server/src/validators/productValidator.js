@@ -2,12 +2,12 @@ const { z } = require('zod');
 
 const productSchema = z.object({
   name: z
-    .string({ required_error: 'Product name is required' })
+    .string({ error: (issue) => (issue.input === undefined ? 'Product name is required' : undefined) })
     .trim()
     .min(1, 'Product name cannot be empty')
     .max(200, 'Product name cannot exceed 200 characters'),
   sku: z
-    .string({ required_error: 'SKU is required' })
+    .string({ error: (issue) => (issue.input === undefined ? 'SKU is required' : undefined) })
     .trim()
     .min(1, 'SKU cannot be empty')
     .max(100, 'SKU cannot exceed 100 characters')
@@ -19,21 +19,21 @@ const productSchema = z.object({
     .nullable()
     .optional(),
   quantityOnHand: z
-    .number({ required_error: 'Quantity on hand is required' })
+    .number({ error: (issue) => (issue.input === undefined ? 'Quantity on hand is required' : 'Quantity must be a number') })
     .int('Quantity must be an integer')
     .min(0, 'Quantity cannot be negative'),
   costPrice: z
-    .number({ invalid_type_error: 'Cost price must be a valid number' })
+    .number({ error: 'Cost price must be a valid number' })
     .min(0, 'Cost price cannot be negative')
     .nullable()
     .optional(),
   sellingPrice: z
-    .number({ invalid_type_error: 'Selling price must be a valid number' })
+    .number({ error: 'Selling price must be a valid number' })
     .min(0, 'Selling price cannot be negative')
     .nullable()
     .optional(),
   lowStockThreshold: z
-    .number({ invalid_type_error: 'Low-stock threshold must be a number' })
+    .number({ error: 'Low-stock threshold must be a number' })
     .int('Low-stock threshold must be an integer')
     .min(0, 'Low-stock threshold cannot be negative')
     .nullable()
@@ -42,7 +42,7 @@ const productSchema = z.object({
 
 const stockAdjustmentSchema = z.object({
   adjustment: z
-    .number({ required_error: 'Adjustment amount is required' })
+    .number({ error: (issue) => (issue.input === undefined ? 'Adjustment amount is required' : 'Adjustment must be a number') })
     .int('Adjustment must be an integer')
     .refine((val) => val !== 0, {
       message: 'Adjustment amount cannot be zero',

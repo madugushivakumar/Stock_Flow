@@ -10,7 +10,7 @@ import { LoadingSpinner } from '../../components/common/LoadingSpinner';
 
 const settingsSchema = z.object({
   defaultLowStockThreshold: z.coerce
-    .number({ invalid_type_error: 'Threshold must be a valid number' })
+    .number({ error: 'Threshold must be a valid number' })
     .int('Threshold must be an integer')
     .min(0, 'Threshold cannot be negative')
     .max(1000000, 'Threshold value is too high'),
