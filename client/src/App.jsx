@@ -11,7 +11,7 @@ import { SettingsPage } from './pages/settings/SettingsPage';
 
 function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <AuthProvider>
         <Routes>
           {/* Public Auth Routes */}

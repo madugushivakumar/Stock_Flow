@@ -1,4 +1,9 @@
-require('dotenv').config();
+const path = require('path');
+const dotenv = require('dotenv');
+
+// Load environment variables from server/.env or current working directory
+dotenv.config({ path: path.resolve(__dirname, '../../.env') });
+dotenv.config();
 
 const NODE_ENV = process.env.NODE_ENV || 'development';
 const PORT = process.env.PORT || 5000;

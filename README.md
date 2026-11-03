@@ -155,6 +155,7 @@ erDiagram
         decimal costPrice
         decimal sellingPrice
         int lowStockThreshold
+        string lastAdjustmentNote
         string lastUpdatedBy
         datetime createdAt
         datetime updatedAt
@@ -262,31 +263,23 @@ Or run separately:
 
 ## 8. Automated Testing & Verification
 
-An automated end-to-end integration test suite is included in `server/test-api.js`. It executes 19 comprehensive test cases against the live PostgreSQL database:
+An automated end-to-end integration test suite is included in `server/test-api.js` powered by strict assertions (`node:assert/strict`). It executes 32 comprehensive test cases across 7 test suites against the live PostgreSQL database:
 
-1. API Health verification.
-2. Atomic organization & owner signup.
-3. Rejection of duplicate emails across registrations.
-4. Login credential verification and JWT generation.
-5. Session `/api/auth/me` context retrieval.
-6. Creation of normal-stock products.
-7. Low-stock detection when $\text{Quantity} < \text{Threshold}$.
-8. Low-stock equality detection when $\text{Quantity} = \text{Default Threshold}$.
-9. Duplicate SKU rejection within the *same* organization.
-10. Registration of a secondary isolated organization (Organization B).
-11. Verification that identical SKU code is *permitted* across different organizations.
-12. Strict catalog isolation: Organization B cannot list Organization A's products.
-13. Cross-tenant mutation protection: Organization B receives `404 Not Found` when attempting to read, update, or delete Organization A's product IDs.
-14. Direct stock adjustment (+N and -N).
-15. Protection against invalid negative inventory adjustments.
-16. Real-time Dashboard metrics and low-stock item aggregation.
-17. Updating organization default low-stock threshold.
-18. Dynamic dashboard recalculation after threshold changes.
-19. Product deletion and post-deletion metrics recalculation.
+1. **Suite 1: Health & System Infrastructure** (API Health verification, uptime & status).
+2. **Suite 2: Authentication & Token Security** (Atomic signup, duplicate email 409, password confirmation check, login 200, invalid password 401, nonexistent email 401, unauthenticated 401 rejection, invalid JWT token 401 rejection, and session `/api/auth/me`).
+3. **Suite 3: Multi-Tenancy & Tenant Data Isolation** (Secondary tenant signup, SKU creation, intra-tenant duplicate SKU 409 rejection, cross-tenant identical SKU collision independence, cross-tenant catalog isolation, cross-tenant read 404, cross-tenant update 404, cross-tenant deletion 404, and cross-tenant stock adjustment 404).
+4. **Suite 4: Atomic Stock Management & Concurrency** (Atomic increment with audit note persistence, atomic decrement, negative stock prevention 400 rejection, zero adjustment 400 rejection, and 5 parallel concurrent simultaneous adjustments with zero lost updates).
+5. **Suite 5: Low-Stock Intelligence & Inclusive Equality** ($Q < T$ low stock flag, $Q = T$ inclusive equality verification, null threshold fallback to organization default 5, and $Q > T$ normal stock).
+6. **Suite 6: Dashboard Metrics & Settings Recalculation** (Accurate product, stock, and low-stock counts, organization default threshold update with dynamic recalculation, and negative threshold 400 rejection).
+7. **Suite 7: Product Deletion & Cleanup** (Product deletion, post-deletion 404, dashboard total adjustment, and repeatable test cleanup).
 
 ### Running the Test Suite:
 ```bash
-node server/test-api.js
+# From workspace root
+npm test
+
+# Or directly in server directory
+npm --prefix server test
 ```
 
 ---
