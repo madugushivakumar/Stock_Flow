@@ -317,7 +317,7 @@ npm --prefix server test
 ## 10. Links & Submission Details
 
 - **GitHub Repository:** [https://github.com/madugushivakumar/StockFlow](https://github.com/madugushivakumar/StockFlow)
-- **Live Application:** [https://stockflow-app.vercel.app](https://stockflow-app.vercel.app) *(or your deployed URL)*
+- **Live Application:** [https://stock-flow-theta-five.vercel.app/dashboard](https://stock-flow-theta-five.vercel.app/dashboard) *(or your deployed URL)*
 - **Demo Credentials:**
   - Email: `owner@alphatech.com`
   - Password: `password123`
